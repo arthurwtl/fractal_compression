@@ -150,6 +150,18 @@ void free_partition(partition* part){
 	free(part);
 }
 
+
+void seuil_pixels(image* img){
+	for(int i = 0; i < img->hauteur; i++){
+		for(int j = 0; j < img->longueur; j++){
+			if(img->matrice[i][j] < 0)
+				img->matrice[i][j] = 0;
+			if(img->matrice[i][j] > img->niveau)
+				img->matrice[i][j] = (double)img->niveau;
+		}
+	}	
+}
+
 image* image_from_partition(partition* part){
 	image* resultat = create_image(part->hauteur, part->longueur, part->niveau);
 
@@ -163,7 +175,8 @@ image* image_from_partition(partition* part){
 		}
 	}
 			
-	
+	//on seuil les pixels entre 0 et niveau
+	seuil_pixels(resultat);
 	return resultat;
 }
 
@@ -292,32 +305,17 @@ partition* compression(image* img, int pasPartition, int pasRecherche){
 	return part;
 }
 
-//auxiliere uniquement pour la fonction suivante, qui est d'ailleur codé avec un pied
-double aux(double val, double alpha, double beta, int niveau){
-	double tmp = alpha * val + beta;
-	double res = -1;
-	if(tmp >= 0 && tmp <= niveau)	
-		res = tmp;
-	else{
-		if(tmp >= 0)
-			res = niveau;
-		else
-			res = 0;
-	}
-	return res;
-}
-
 //une itération du processus de décompression
 void une_iteration(partition* part, image* source, image* resultat){
-	double tmp;
+	double val_pixel;
 	for(int i = 0; i < part->nbBlocHauteur; i++){
 		for(int j = 0; j < part->nbBlocLongueur; j++){
 			int posx = part->blocs[i][j]->posx;
 			int posy = part->blocs[i][j]->posy;
 			for(int k = 0; k < part->blocs[i][j]->img->hauteur; k++){
 				for(int l = 0; l < part->blocs[i][j]->img->longueur; l++){
-					tmp  = (source->matrice[posx + 2*k][posy + 2*l] + source->matrice[posx + 2*k + 1][ posy + 2*l] + source->matrice[ posx +2*k][posy + 2*l + 1] + source->matrice[posx + 2*k + 1 ][posy + 2*l + 1]) / 4;
-					resultat->matrice[i * part->pas + k][j * part->pas + l] = aux(tmp, part->blocs[i][j]->alpha, part->blocs[i][j]->beta, resultat->niveau);
+					val_pixel  = (source->matrice[posx + 2*k][posy + 2*l] + source->matrice[posx + 2*k + 1][ posy + 2*l] + source->matrice[ posx +2*k][posy + 2*l + 1] + source->matrice[posx + 2*k + 1 ][posy + 2*l + 1]) / 4;
+					resultat->matrice[i * part->pas + k][j * part->pas + l] = val_pixel * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
 				}
 			}
 
@@ -339,10 +337,12 @@ image* decompression(partition* part, int n){
 	if(n % 2 == 1){
 		une_iteration(part, img1, img2);
 		free_image(img1);
+		seuil_pixels(img2);
 		return img2;	
 	}
 	else{
 		free_image(img2);
+		seuil_pixels(img1);
 		return img1;
 	}
 }
@@ -409,7 +409,7 @@ int main()
 	double tmp = fruits_partition->blocs[2][0]->beta;
 	printf("tmp : %lf\n", tmp);
 
-	image* resultat = decompression(fruits_partition, 1);
+	image* resultat = decompression(fruits_partition, 100);
 	//une_iteration(fruits_partition, img1, img2);
 
 	save_image(resultat, "decompressé.pgm");
@@ -422,3 +422,4 @@ int main()
 
 	return 0;
 }
+
