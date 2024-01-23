@@ -1,9 +1,11 @@
+// ################### Blocs et Partitions #####################
+
+
 #ifndef LECTURE
 #define LECTURE
 #include "image_pgm.c"
 #endif
 
-// =================== Blocs et Partitions =====================
 
 // un bloc est la donné de : une image, les constantes de la ragression linéaire, les coordonnés du bloc source.
 struct bloc_s{
@@ -54,6 +56,8 @@ struct partition_s{
 };
 
 typedef struct partition_s partition;
+
+// ============ Image to part et part to image ==============
 
 partition* partition_from_image(image* img, int pas){
 	partition* part = malloc(sizeof(partition));
@@ -191,3 +195,54 @@ void grille(partition* part){
 		}
 	}
 }
+
+// ============== Enregistrement et lecture du fichier compressé en .ftl ==============
+
+//enregistre une image sous forme compressé : format detaillé dans fractale.txt
+void save_fractale(partition* part, char* nom_fichier){
+    FILE* fichier = fopen(nom_fichier, "w" );
+    assert(fichier != NULL);
+	
+    fprintf(fichier, "%d\n%d\n%d\n%d\n", part->longueur, part->hauteur, part->niveau, part->pas);
+
+	for(int i = 0; i < part->nbBlocHauteur; i++){
+		for(int j = 0; j < part->nbBlocLongueur; j++){
+			fprintf(fichier, "%lf\n%lf\n%d\n%d\n", part->blocs[i][j]->alpha, part->blocs[i][j]->beta, part->blocs[i][j]->posx, part->blocs[i][j]->posy);
+		}
+	}
+
+    fclose(fichier);
+}
+
+//Lit une image .ftl et la stock dans une partition dont on ne se préoccupe pas de l'image
+partition* lecture_fractale(char* nom_fichier){
+
+	printf("lecture de %s :\n", nom_fichier);
+    FILE* fichier = fopen(nom_fichier, "r");
+    assert(fichier != NULL);
+
+	int longueur, hauteur, niveau, pas, posx, posy;
+	double alpha, beta;
+
+    fscanf(fichier, "%d\n%d\n%d\n%d\n", &longueur, &hauteur, &niveau, &pas);
+    printf("l %d h %d n %d p %d\n", longueur, hauteur, niveau, pas);
+
+	image* img_tmp = create_image(hauteur, longueur, niveau);
+	partition* part = partition_from_image(img_tmp, pas);
+	free_image(img_tmp);
+
+	for(int i = 0; i < part->nbBlocHauteur; i++){
+		for(int j = 0; j < part->nbBlocLongueur; j++){
+			fscanf(fichier, "%lf\n%lf\n%d\n%d\n", &alpha, &beta, &posx, &posy);
+			printf("a %lf b %lf x %d y %d\n", alpha, beta, posx, posy);
+			part->blocs[i][j]->alpha = alpha;
+			part->blocs[i][j]->beta = beta;
+			part->blocs[i][j]->posx = posx;
+			part->blocs[i][j]->posy = posy;
+		}
+	}
+    fclose(fichier);
+	return part;
+}
+
+

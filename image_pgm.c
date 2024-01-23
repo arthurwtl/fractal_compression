@@ -1,4 +1,4 @@
-// ================== Fonctions de lecture et traitement d'images en format pgm ================
+// ############ Fonctions de lecture et traitement d'images en format pgm #############
 
 #ifndef standard_lib
 #define standard_lib
@@ -167,11 +167,3 @@ void multiply_number_image(double couleur, image* img){
 		}
 	}
 }
-
-
-
-
-
-
-
-

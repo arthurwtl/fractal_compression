@@ -95,6 +95,8 @@ void regression_lineaire(bloc* b, image* img, int posx, int posy){
 //prend une image, un pas pour la partition et un pas pour la precision de la recherche des blocs source
 //Sort une partition avec tout actualisé
 partition* compression(image* img, int pasPartition, int pasRecherche){
+	
+	printf("Début de compression :\n");
 	partition* part = partition_from_image(img, pasPartition);
 
 	int posx = 0;
@@ -121,6 +123,7 @@ partition* compression(image* img, int pasPartition, int pasRecherche){
 		printf("%d sur %d\n", i, part->nbBlocHauteur);
 	}
 		
+	printf("Fin de compression :\n");
 	return part;
 }
 
@@ -143,6 +146,7 @@ void une_iteration(partition* part, image* source, image* resultat){
 }
 
 image* decompression(partition* part, int n){
+	printf("Début de décompression :\n");
 	image* img1 = create_image(part->hauteur, part->longueur, part->niveau);
 	image* img2 = create_image(part->hauteur, part->longueur, part->niveau);
 
@@ -157,11 +161,13 @@ image* decompression(partition* part, int n){
 		une_iteration(part, img1, img2);
 		free_image(img1);
 		seuil_pixels(img2);
+		printf("Fin de décompression :\n");
 		return img2;	
 	}
 	else{
 		free_image(img2);
 		seuil_pixels(img1);
+		printf("Fin de décompression :\n");
 		return img1;
 	}
 }
@@ -222,20 +228,21 @@ int main()
 
 	// ================== tests de l'algo ===================
 	
-	image* fruits = lecture_image("mangues.pgm");
+	printf("\n========= Execution de l'algorithme =========\n\n");
+	
+	//image* image_non_compresse = lecture_image("mangues.pgm");
 
-	partition* fruits_partition = compression(fruits, 32, 2);
-	double tmp = fruits_partition->blocs[2][0]->beta;
-	printf("tmp : %lf\n", tmp);
+	//partition* partition_compresse = compression(image_non_compresse, 8, 1);
+	//save_fractale(partition_compresse, "fractale.ftl");
 
-	image* resultat = decompression(fruits_partition, 100);
-	//une_iteration(fruits_partition, img1, img2);
+	partition* partition_compresse = lecture_fractale("mangues_8_1.ftl");
+	image* resultat_decompression = decompression(partition_compresse, 100);
 
-	save_image(resultat, "decompressé.pgm");
+	save_image(resultat_decompression, "decompressé.pgm");
 
-	free_partition(fruits_partition);
-	free_image(resultat);
-	free_image(fruits);
+	free_partition(partition_compresse);
+	free_image(resultat_decompression);
+	//free_image(image_non_compresse);
 
 
 
