@@ -167,3 +167,67 @@ void multiply_number_image(double couleur, image* img){
 		}
 	}
 }
+
+//Isométries du carré : prend une image carré et un identifiant d'isométrie et lui fait subir l'isométrie. 
+//L'identité est representé par n(importe quel identifiant >= 7 (7 dans le programme)
+//Entrée : img l'image, res l'image ou s'applique la transformation, id l'identifiant de la transformation
+void isometrie(image* img, image* res, int id){
+	assert(img->longueur == img->longueur && img->longueur == res->hauteur && res->hauteur == res->longueur);
+	int n = img->hauteur;
+	if(id == 0){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[n-1-j][i];
+			}
+		}
+	}
+	if(id == 1){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[n-1-i][n-1-j];
+			}
+		}
+	}
+	if(id == 2){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[j][n-1-i];
+			}
+		}
+	}
+	if(id == 3){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[n-1-i][j];
+			}
+		}
+	}
+	if(id == 4){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[j][i];
+			}
+		}
+	}
+	if(id == 5){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[i][n-1-j];
+			}
+		}
+	}
+	if(id == 6){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[n-1-j][n-1-i];
+			}
+		}
+	}
+	if(id == 7){
+		for(int i = 0 ; i < img->hauteur; i++){
+			for(int j=0 ; j < img->longueur; j++){
+				res->matrice[i][j] = img->matrice[i][j];
+			}
+		}
+	}
+}

@@ -175,19 +175,46 @@ image* decompression(partition* part, int n){
 int main()
 {
 	// ================== Tests divers =================
-	
-	//test creation, sauvegarde, free et remplissage
-	image* test1 = create_image(100, 80, 255);
-	remplissage(100, test1);
+
+	/*
+	//isométrie
+	image* test1 = lecture_image("feep.pgm");
 	save_image(test1, "test1.pgm");
 
+	image* test2 = extraire_image(0, 0, test1->hauteur - 1, test1->hauteur - 1, test1);
+	save_image(test2, "test2.pgm");
+
+	image* test3 = create_image(test2->hauteur, test2->hauteur, test2->niveau);
+	for(int i = 0; i <= 7; i++){
+		isometrie(test2, test3, i);
+		char* name = malloc(256);
+		strcpy(name, "isometrie_nb_x.pgm");
+		name[13] = i+48;
+		printf("%c\n", name[13]);
+		printf("%s\n", name);
+
+		save_image(test3, name);
+		free(name);
+	}
+
+	free_image(test1);
+	free_image(test2);
+	free_image(test3);
+	*/
+
+	/*
 	//test lecture
 	image* test2 = lecture_image("feep.pgm");
 	save_image(test2, "test2.pgm");
 
 	//test extraction images
-	image* test3 = extraire_image(0, 0, test2->hauteur - 1, test2->longueur - 1, test2);
-	save_image(test3, "test3.pgm");
+	image* test3 = extraire_image(0, 0, test2->hauteur - 1, test2->hauteur - 1, test2); save_image(test3, "test3.pgm");
+	
+	//test creation, sauvegarde, free et remplissage
+	image* test1 = create_image(test3->hauteur, test3->hauteur, 255);
+	remplissage(100, test1);
+	//isometrie(test3, test1, 0);
+	save_image(test1, "test1.pgm");
 
 	printf(" les images on un score de : %d\n", (int)cout(test3, test3));
 
@@ -225,6 +252,7 @@ int main()
 	free_image(test2);
 	free_image(test3);
 	free_image(test4);
+	*/
 
 	// ================== tests de l'algo ===================
 	

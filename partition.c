@@ -225,7 +225,7 @@ partition* lecture_fractale(char* nom_fichier){
 	double alpha, beta;
 
     fscanf(fichier, "%d\n%d\n%d\n%d\n", &longueur, &hauteur, &niveau, &pas);
-    printf("l %d h %d n %d p %d\n", longueur, hauteur, niveau, pas);
+    //printf("l %d h %d n %d p %d\n", longueur, hauteur, niveau, pas);
 
 	image* img_tmp = create_image(hauteur, longueur, niveau);
 	partition* part = partition_from_image(img_tmp, pas);
@@ -234,7 +234,7 @@ partition* lecture_fractale(char* nom_fichier){
 	for(int i = 0; i < part->nbBlocHauteur; i++){
 		for(int j = 0; j < part->nbBlocLongueur; j++){
 			fscanf(fichier, "%lf\n%lf\n%d\n%d\n", &alpha, &beta, &posx, &posy);
-			printf("a %lf b %lf x %d y %d\n", alpha, beta, posx, posy);
+			//printf("a %lf b %lf x %d y %d\n", alpha, beta, posx, posy);
 			part->blocs[i][j]->alpha = alpha;
 			part->blocs[i][j]->beta = beta;
 			part->blocs[i][j]->posx = posx;
