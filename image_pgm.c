@@ -1,7 +1,7 @@
 // ############ Fonctions de lecture et traitement d'images en format pgm #############
 
-#ifndef standard_lib
-#define standard_lib
+#ifndef STANDARD
+#define STANDARD
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -94,30 +94,28 @@ void free_image(image* img){
 
 //prend une image, les coordonné d'un premier pixel (inclu), d'un deuxieme pixel (incluc) et
 //renvoit l'image extraite entre les deux pixels
-image* extraire_image(int pos1x, int pos1y, int pos2x, int pos2y, image* img){
+void extraire_image(int pos1x, int pos1y, int pos2x, int pos2y, image* img, image* resultat){
 	int hauteur = pos2x - pos1x + 1;
 	assert(hauteur >= 1 && hauteur <= img->hauteur);
 	int longueur = pos2y - pos1y + 1;
 	assert(longueur >= 1 && longueur <= img->longueur);
-	image* resultat = create_image(hauteur, longueur, img->niveau);
+	assert(longueur == resultat->longueur && hauteur == resultat->hauteur);
     for(int i = 0; i < hauteur; i++){
         for(int j = 0; j < longueur; j++){
 			resultat->matrice[i][j] = img->matrice[pos1x + i][pos1y + j];
 		}
 	}
-	return resultat;
 }
 
 //prend une image et renvoit la meme image décimé par deux
 //Un pixel de l'image renvoyé est la moyenne des 4 pixels corespondant dans l'image de départ
-image* decime_image(image* img){
-	image* resultat = create_image(img->hauteur / 2, img->longueur / 2, img->niveau);
+void decime_image(image* img, image* resultat){
+	assert(img->longueur == resultat->longueur * 2 && img->hauteur == resultat->hauteur * 2);
     for(int i = 0; i < resultat->hauteur; i++){
         for(int j = 0; j < resultat->longueur; j++){
 			resultat->matrice[i][j] = (img->matrice[2*i][2*j] + img->matrice[2*i + 1][2*j] + img->matrice[2*i][2*j + 1] + img->matrice[2*i + 1 ][2*j + 1]) / 4;
 		}
 	}
-	return resultat;
 }
 
 

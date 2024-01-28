@@ -15,6 +15,7 @@ struct bloc_s{
 	double cout;
 	int posx;
 	int posy;
+	int id_iso;
 };
 
 typedef struct bloc_s bloc;
@@ -30,6 +31,7 @@ bloc* create_bloc(image* img){
 	b->cout = -1;
 	b->posx = -1;
 	b->posy = -1;
+	b->id_iso = -1;
 
 	return b;
 }
@@ -115,19 +117,25 @@ partition* partition_from_image(image* img, int pas){
 		}
 		
 		for(int j = 0; j < nbBlocLongueur; j++){
-			
 			if(i < nbBlocHauteur - 1 && j < nbBlocLongueur - 1){
-				part->blocs[i][j] = create_bloc(extraire_image(i*pas, j*pas, (i+1)*pas - 1, (j+1)*pas - 1, img));
+				image* tmp = create_image(pas, pas, img->niveau);
+				extraire_image(i*pas, j*pas, (i+1)*pas - 1, (j+1)*pas - 1, img, tmp);
+				part->blocs[i][j] = create_bloc(tmp);
 			}
 			if(i < nbBlocHauteur - 1 && j == nbBlocLongueur - 1){
-				part->blocs[i][j] = create_bloc(extraire_image(i*pas, j*pas, (i+1)*pas - 1, j*pas + rl - 1, img));
+				image* tmp = create_image(pas, rl, img->niveau);
+				extraire_image(i*pas, j*pas, (i+1)*pas - 1, j*pas + rl - 1, img, tmp);
+				part->blocs[i][j] = create_bloc(tmp);
 			}
 			if(i == nbBlocHauteur - 1 && j < nbBlocLongueur - 1){
-			
-				part->blocs[i][j] = create_bloc(extraire_image(i*pas, j*pas, i*pas + rh - 1, (j+1)*pas - 1, img));
+				image* tmp = create_image(rh, pas, img->niveau);
+				extraire_image(i*pas, j*pas, i*pas + rh - 1, (j+1)*pas - 1, img, tmp);
+				part->blocs[i][j] = create_bloc(tmp);
 			}
 			if(i == nbBlocHauteur - 1 && j == nbBlocLongueur - 1){
-				part->blocs[i][j] = create_bloc(extraire_image(i*pas, j*pas, i*pas + rh - 1, j*pas + rl - 1, img));
+				image* tmp = create_image(rh, rl, img->niveau);
+				extraire_image(i*pas, j*pas, i*pas + rh - 1, j*pas + rl - 1, img, tmp);
+				part->blocs[i][j] = create_bloc(tmp);
 			}
 
 		}
@@ -156,6 +164,7 @@ void seuil_pixels(image* img){
 				img->matrice[i][j] = 0;
 			if(img->matrice[i][j] > img->niveau)
 				img->matrice[i][j] = (double)img->niveau;
+			
 		}
 	}	
 }
@@ -207,7 +216,7 @@ void save_fractale(partition* part, char* nom_fichier){
 
 	for(int i = 0; i < part->nbBlocHauteur; i++){
 		for(int j = 0; j < part->nbBlocLongueur; j++){
-			fprintf(fichier, "%lf\n%lf\n%d\n%d\n", part->blocs[i][j]->alpha, part->blocs[i][j]->beta, part->blocs[i][j]->posx, part->blocs[i][j]->posy);
+			fprintf(fichier, "%lf\n%lf\n%d\n%d\n%d\n", part->blocs[i][j]->alpha, part->blocs[i][j]->beta, part->blocs[i][j]->posx, part->blocs[i][j]->posy, part->blocs[i][j]->id_iso);
 		}
 	}
 
@@ -221,24 +230,25 @@ partition* lecture_fractale(char* nom_fichier){
     FILE* fichier = fopen(nom_fichier, "r");
     assert(fichier != NULL);
 
-	int longueur, hauteur, niveau, pas, posx, posy;
+	int longueur, hauteur, niveau, pas, posx, posy, id_iso;
 	double alpha, beta;
 
     fscanf(fichier, "%d\n%d\n%d\n%d\n", &longueur, &hauteur, &niveau, &pas);
     //printf("l %d h %d n %d p %d\n", longueur, hauteur, niveau, pas);
 
-	image* img_tmp = create_image(hauteur, longueur, niveau);
+	image* img_tmp = create_image(hauteur , longueur , niveau);
 	partition* part = partition_from_image(img_tmp, pas);
 	free_image(img_tmp);
 
 	for(int i = 0; i < part->nbBlocHauteur; i++){
 		for(int j = 0; j < part->nbBlocLongueur; j++){
-			fscanf(fichier, "%lf\n%lf\n%d\n%d\n", &alpha, &beta, &posx, &posy);
+			fscanf(fichier, "%lf\n%lf\n%d\n%d\n%d\n", &alpha, &beta, &posx, &posy, &id_iso);
 			//printf("a %lf b %lf x %d y %d\n", alpha, beta, posx, posy);
 			part->blocs[i][j]->alpha = alpha;
 			part->blocs[i][j]->beta = beta;
 			part->blocs[i][j]->posx = posx;
 			part->blocs[i][j]->posy = posy;
+			part->blocs[i][j]->id_iso = id_iso;
 		}
 	}
     fclose(fichier);

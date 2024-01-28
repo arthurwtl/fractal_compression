@@ -64,7 +64,7 @@ double cout(image* img1, image* img2){
 
 /*Prend un bloc et une image de la meme taille  que l'image du bloc. Si la regression linéaire entre les deux donne un cout meilleur que ce qui
  * est enregistré dans le bloc, ses variables sont actualisées.*/
-void regression_lineaire(bloc* b, image* img, int posx, int posy){
+void regression_lineaire(bloc* b, image* img, int posx, int posy, int id_iso){
 	double sommeUV = somme_du_produit_images(b->img, img);
 	double sommeU = somme_image(b->img);
 	double sommeV = somme_image(img);
@@ -87,6 +87,7 @@ void regression_lineaire(bloc* b, image* img, int posx, int posy){
 		b->cout = cout;
 		b->posx = posx;
 		b->posy = posy;
+		b->id_iso = id_iso;
 	}
 }
 
@@ -99,30 +100,62 @@ partition* compression(image* img, int pasPartition, int pasRecherche){
 	printf("Début de compression :\n");
 	partition* part = partition_from_image(img, pasPartition);
 
-	int posx = 0;
-	int posy = 0;
+	int posx;
+	int posy;
 
 	for(int i = 0; i < part->nbBlocHauteur; i++){
+		printf("Compression %d sur %d\n", i, part->nbBlocHauteur);
 		for(int j = 0; j < part->nbBlocLongueur; j++){
-			while(posx < img->hauteur - 2 * part->blocs[i][j]->img->hauteur){
-				while(posy < img->longueur - 2 * part->blocs[i][j]->img->longueur){
-					image* tmp1 = extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, img);
-					//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur);
-					image* tmp2 = decime_image(tmp1);
-					regression_lineaire(part->blocs[i][j], tmp2, posx, posy);	
-					free_image(tmp1);
-					free_image(tmp2);
-
-					posy += pasRecherche;
-				}
-				posx += pasRecherche;
+			if(part->blocs[i][j]->img->longueur == part->blocs[i][j]->img->hauteur){
+				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
+				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+				image* image_iso = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+				posx = 0;
 				posy = 0;
+				while(posx < img->hauteur - 2 * part->blocs[i][j]->img->hauteur){
+					while(posy < img->longueur - 2 * part->blocs[i][j]->img->longueur){
+						extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, img, image_extraite);
+						//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur);
+						decime_image(image_extraite, image_decime);
+						
+						for(int id_iso = 0; id_iso <= 7; id_iso++){
+							isometrie(image_decime, image_iso, id_iso);
+							regression_lineaire(part->blocs[i][j], image_iso, posx, posy, id_iso);	
+						}
+
+						posy += pasRecherche;
+					}
+					posx += pasRecherche;
+					posy = 0;
+				}
+				free_image(image_decime);
+				free_image(image_extraite);
+				free_image(image_iso);
 			}
-			posx = 0;
+			else{
+				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
+				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+				posx = 0;
+				posy = 0;
+				while(posx < img->hauteur - 2 * part->blocs[i][j]->img->hauteur){
+					while(posy < img->longueur - 2 * part->blocs[i][j]->img->longueur){
+						extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, img, image_extraite);
+						//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur);
+						decime_image(image_extraite, image_decime);
+
+						regression_lineaire(part->blocs[i][j], image_decime, posx, posy, 7);	
+
+						posy += pasRecherche;
+					}
+					posx += pasRecherche;
+					posy = 0;
+				}
+				free_image(image_decime);
+				free_image(image_extraite);
+			}
 		}
-		printf("%d sur %d\n", i, part->nbBlocHauteur);
 	}
-		
+
 	printf("Fin de compression :\n");
 	return part;
 }
@@ -132,12 +165,30 @@ void une_iteration(partition* part, image* source, image* resultat){
 	double val_pixel;
 	for(int i = 0; i < part->nbBlocHauteur; i++){
 		for(int j = 0; j < part->nbBlocLongueur; j++){
-			int posx = part->blocs[i][j]->posx;
-			int posy = part->blocs[i][j]->posy;
-			for(int k = 0; k < part->blocs[i][j]->img->hauteur; k++){
-				for(int l = 0; l < part->blocs[i][j]->img->longueur; l++){
-					val_pixel  = (source->matrice[posx + 2*k][posy + 2*l] + source->matrice[posx + 2*k + 1][ posy + 2*l] + source->matrice[ posx +2*k][posy + 2*l + 1] + source->matrice[posx + 2*k + 1 ][posy + 2*l + 1]) / 4;
-					resultat->matrice[i * part->pas + k][j * part->pas + l] = val_pixel * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
+			if(part->blocs[i][j]->img->longueur == part->blocs[i][j]->img->hauteur){
+				int posx = part->blocs[i][j]->posx;
+				int posy = part->blocs[i][j]->posy;
+				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
+				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+				extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, source, image_extraite);
+				decime_image(image_extraite, image_decime);
+				isometrie(image_decime, part->blocs[i][j]->img, part->blocs[i][j]->id_iso);
+				for(int k = 0; k < part->blocs[i][j]->img->hauteur; k++){
+					for(int l = 0; l < part->blocs[i][j]->img->longueur; l++){
+						resultat->matrice[i * part->pas + k][j * part->pas + l] = part->blocs[i][j]->img->matrice[k][l] * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
+					}
+				}
+				free_image(image_decime);
+				free_image(image_extraite);
+			}
+			else{
+				int posx = part->blocs[i][j]->posx;
+				int posy = part->blocs[i][j]->posy;
+				for(int k = 0; k < part->blocs[i][j]->img->hauteur; k++){
+					for(int l = 0; l < part->blocs[i][j]->img->longueur; l++){
+						val_pixel  = (source->matrice[posx + 2*k][posy + 2*l] + source->matrice[posx + 2*k + 1][ posy + 2*l] + source->matrice[ posx +2*k][posy + 2*l + 1] + source->matrice[posx + 2*k + 1 ][posy + 2*l + 1]) / 4;
+						resultat->matrice[i * part->pas + k][j * part->pas + l] = val_pixel * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
+					}
 				}
 			}
 
@@ -154,6 +205,7 @@ image* decompression(partition* part, int n){
 	remplissage(part->niveau/2, img2);
 
 	for(int i = 0; i < n/2; i++){
+		printf("Decompression %d sur %d\n", i*2, n);
 		une_iteration(part, img1, img2);
 		une_iteration(part, img2, img1);
 	}
@@ -177,7 +229,7 @@ int main()
 	// ================== Tests divers =================
 
 	/*
-	//isométrie
+	//Génere les image de F caracterisant les isométries
 	image* test1 = lecture_image("feep.pgm");
 	save_image(test1, "test1.pgm");
 
@@ -202,57 +254,6 @@ int main()
 	free_image(test3);
 	*/
 
-	/*
-	//test lecture
-	image* test2 = lecture_image("feep.pgm");
-	save_image(test2, "test2.pgm");
-
-	//test extraction images
-	image* test3 = extraire_image(0, 0, test2->hauteur - 1, test2->hauteur - 1, test2); save_image(test3, "test3.pgm");
-	
-	//test creation, sauvegarde, free et remplissage
-	image* test1 = create_image(test3->hauteur, test3->hauteur, 255);
-	remplissage(100, test1);
-	//isometrie(test3, test1, 0);
-	save_image(test1, "test1.pgm");
-
-	printf(" les images on un score de : %d\n", (int)cout(test3, test3));
-
-
-	//test decimation
-	image* mangues = lecture_image("mangues.pgm");
-	image* manguesExpose = lecture_image("manguesExpose.pgm");
-	image* test4 = decime_image(mangues);
-	save_image(test4, "test4.pgm");
-
-	bloc* mangues_b = create_bloc(mangues);
-
-	regression_lineaire(mangues_b, manguesExpose, 0, 0);
-	printf("alpha : %lf beta : %lf cout : %lf posx : %d posy : %d\n",mangues_b->alpha, mangues_b->beta, mangues_b->cout, mangues_b->posx, mangues_b->posy);
-
-	multiply_number_image(mangues_b->alpha, manguesExpose);
-	add_number_image(mangues_b->beta, manguesExpose);
-
-	save_image(manguesExpose, "resultat_test_reg_lin.pgm");
-
-	partition* mangues_partition = compression(test1, 8, 4);
-	grille(mangues_partition);
-	printf("%d\n", mangues_partition->blocs[12][9]->img->hauteur); //c'est les blocs de frontiere qui sont cassés
-
-	image* test5 = image_from_partition(mangues_partition);
-	
-	save_image(test5, "test5.pgm");
-
-	free_image(test5);
-	free_partition(mangues_partition);
-	free(mangues_b);
-	free_image(mangues);
-	free_image(manguesExpose);
-	free_image(test1);	
-	free_image(test2);
-	free_image(test3);
-	free_image(test4);
-	*/
 
 	// ================== tests de l'algo ===================
 	
@@ -260,11 +261,11 @@ int main()
 	
 	//image* image_non_compresse = lecture_image("mangues.pgm");
 
-	//partition* partition_compresse = compression(image_non_compresse, 8, 1);
+	//partition* partition_compresse = compression(image_non_compresse, 16, 8);
 	//save_fractale(partition_compresse, "fractale.ftl");
 
-	partition* partition_compresse = lecture_fractale("mangues_8_1.ftl");
-	image* resultat_decompression = decompression(partition_compresse, 100);
+	partition* partition_compresse = lecture_fractale("fractale.ftl");
+	image* resultat_decompression = decompression(partition_compresse, 50);
 
 	save_image(resultat_decompression, "decompressé.pgm");
 
