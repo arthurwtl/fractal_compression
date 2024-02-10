@@ -170,7 +170,7 @@ void multiply_number_image(double couleur, image* img){
 //L'identité est representé par n(importe quel identifiant >= 7 (7 dans le programme)
 //Entrée : img l'image, res l'image ou s'applique la transformation, id l'identifiant de la transformation
 void isometrie(image* img, image* res, int id){
-	assert(img->longueur == img->longueur && img->longueur == res->hauteur && res->hauteur == res->longueur);
+	assert(img->hauteur == img->longueur && img->longueur == res->hauteur && res->hauteur == res->longueur);
 	int n = img->hauteur;
 	if(id == 0){
 		for(int i = 0 ; i < img->hauteur; i++){

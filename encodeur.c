@@ -68,7 +68,7 @@ void regression_lineaire(bloc* b, image* img, int posx, int posy, int id_iso){
 	double sommeUV = somme_du_produit_images(b->img, img);
 	double sommeU = somme_image(b->img);
 	double sommeV = somme_image(img);
-	double sommeVcarre = somme_du_produit_images(b->img, b->img); 
+	double sommeVcarre = somme_du_produit_images(img, img); 
 	double N = b->img->longueur * b->img->hauteur;
 
 	double alpha = (sommeUV * N - sommeU * sommeV) / (sommeVcarre * N - sommeV * sommeV);
@@ -81,7 +81,7 @@ void regression_lineaire(bloc* b, image* img, int posx, int posy, int id_iso){
 		}
 	}
 
-	if(b->posx == -1 || cout < b->cout){
+	if(b->id_iso == -1 || cout <= b->cout){ //id_iso = -1 que lorsque on execute le 1er passage
 		b->alpha = alpha;
 		b->beta = beta;
 		b->cout = cout;
@@ -160,6 +160,65 @@ partition* compression(image* img, int pasPartition, int pasRecherche){
 	return part;
 }
 
+int max(int a,int b){
+	if(a < b)
+		return b;
+	else
+		return a;
+}
+
+//fonction heuristique qui s'execute apres la phase initiale de compression,
+//et qui recherche des bloc autour de celui selectionné avec un pas plus précis (de 1 pixel)
+//Entrée : la partition part, l'image img et un entier pas qui donne la distance autour de laquel on cherche
+void recherche_adjacente(partition* part, image* img, int pas){
+	for(int i = 0; i < part->nbBlocHauteur; i++){
+		printf("Amélioration adjacente %d sur %d\n", i, part->nbBlocHauteur);
+		for(int j = 0; j < part->nbBlocLongueur; j++){
+			int posx_initial = part->blocs[i][j]->posx;
+			int posy_initial = part->blocs[i][j]->posy;
+			int posx = max(0, posx_initial - pas);
+			int posy = max(0, posy_initial - pas);
+
+			image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
+			image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+			image* image_iso = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+
+			while(posx < part->hauteur - 2 * part->blocs[i][j]->img->hauteur && posx < posx_initial + pas){
+				while(posy < part->longueur - 2 * part->blocs[i][j]->img->longueur && posy < posy_initial + pas){
+					extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, img, image_extraite);
+					//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur);
+					decime_image(image_extraite, image_decime);
+				
+					if(part->blocs[i][j]->id_iso != 7){
+						isometrie(image_decime, image_iso, part->blocs[i][j]->id_iso);
+						regression_lineaire(part->blocs[i][j], image_iso, posx, posy, part->blocs[i][j]->id_iso);	
+					}
+					else{
+						regression_lineaire(part->blocs[i][j], image_decime, posx, posy, 7);	
+					}
+
+					posy += 1;
+				}
+				posx += 1;
+				posy = 0;
+			}
+			free_image(image_decime);
+			free_image(image_extraite);
+			free_image(image_iso);
+		}
+	}
+}
+
+// Une fonction de debbug uniquement.
+void affiche_partition(partition* part){
+	for(int i = 0; i < part->nbBlocHauteur; i++){
+		for(int j = 0; j < part->nbBlocLongueur; j++){
+				printf("%d %d | ", (int)(part->blocs[i][j]->alpha * 10), (int)part->blocs[i][j]->beta);
+		}
+		printf("\n");
+	}
+}
+
 //une itération du processus de décompression
 void une_iteration(partition* part, image* source, image* resultat){
 	double val_pixel;
@@ -170,16 +229,18 @@ void une_iteration(partition* part, image* source, image* resultat){
 				int posy = part->blocs[i][j]->posy;
 				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
 				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+				image* image_iso = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
 				extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, source, image_extraite);
 				decime_image(image_extraite, image_decime);
-				isometrie(image_decime, part->blocs[i][j]->img, part->blocs[i][j]->id_iso);
+				isometrie(image_decime, image_iso, part->blocs[i][j]->id_iso);
 				for(int k = 0; k < part->blocs[i][j]->img->hauteur; k++){
 					for(int l = 0; l < part->blocs[i][j]->img->longueur; l++){
-						resultat->matrice[i * part->pas + k][j * part->pas + l] = part->blocs[i][j]->img->matrice[k][l] * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
+						resultat->matrice[i * part->pas + k][j * part->pas + l] = image_iso->matrice[k][l] * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
 					}
 				}
 				free_image(image_decime);
 				free_image(image_extraite);
+				free_image(image_iso);
 			}
 			else{
 				int posx = part->blocs[i][j]->posx;
@@ -201,8 +262,8 @@ image* decompression(partition* part, int n){
 	image* img1 = create_image(part->hauteur, part->longueur, part->niveau);
 	image* img2 = create_image(part->hauteur, part->longueur, part->niveau);
 
-	remplissage(part->niveau/2, img1);
-	remplissage(part->niveau/2, img2);
+	remplissage(0, img1);
+	remplissage(0, img2);
 
 	for(int i = 0; i < n/2; i++){
 		printf("Decompression %d sur %d\n", i*2, n);
@@ -259,19 +320,25 @@ int main()
 	
 	printf("\n========= Execution de l'algorithme =========\n\n");
 	
-	//image* image_non_compresse = lecture_image("mangues.pgm");
+	//image* image_non_compresse = lecture_image("nuages.pgm");
+	image* image_non_compresse = lecture_image("chou.pgm");
 
-	//partition* partition_compresse = compression(image_non_compresse, 16, 8);
-	//save_fractale(partition_compresse, "fractale.ftl");
+	partition* partition_compresse = compression(image_non_compresse, 16, 2);
 
-	partition* partition_compresse = lecture_fractale("fractale.ftl");
-	image* resultat_decompression = decompression(partition_compresse, 50);
+	recherche_adjacente(partition_compresse, image_non_compresse, 1);
 
-	save_image(resultat_decompression, "decompressé.pgm");
+	save_fractale(partition_compresse, "avec_amelioration.ftl");
+
+	//partition* partition_compresse = lecture_fractale("mangues_16_8_50_iso.ftl");
+	
+	image* resultat_decompression_2 = decompression(partition_compresse, 100);
+	save_image(resultat_decompression_2, "avec_amelioration.pgm");
+
+	affiche_partition(partition_compresse);
 
 	free_partition(partition_compresse);
-	free_image(resultat_decompression);
-	//free_image(image_non_compresse);
+	free_image(resultat_decompression_2);
+	free_image(image_non_compresse);
 
 
 
