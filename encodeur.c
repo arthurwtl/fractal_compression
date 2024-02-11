@@ -16,6 +16,9 @@
 #include "partition.c"
 #endif
 
+#include <pthread.h>
+#define NUM_THREADS 12
+
 // ============= Regression linéaire =============
 
 
@@ -93,19 +96,33 @@ void regression_lineaire(bloc* b, image* img, int posx, int posy, int id_iso){
 
 // =================== L'algo =====================
 
-//prend une image, un pas pour la partition et un pas pour la precision de la recherche des blocs source
-//Sort une partition avec tout actualisé
-partition* compression(image* img, int pasPartition, int pasRecherche){
-	
-	printf("Début de compression :\n");
-	partition* part = partition_from_image(img, pasPartition);
+// Structure pour les arguments du thread
+struct ThreadArgs {
+    partition* part;
+    image* img;
+    int pasRecherche;
+    int start;
+    int end;
+};
+typedef struct ThreadArgs threadArgs;
+
+// Fonction exécutée par chaque thread
+void *compress_thread(void *arg) {
+    threadArgs *args = (threadArgs *)arg;
+
+    int pasRecherche = args->pasRecherche;
+    int start = args->start;
+    int end = args->end;
+	partition* part = args->part;
+	image* img = args->img;
 
 	int posx;
 	int posy;
 
-	for(int i = 0; i < part->nbBlocHauteur; i++){
-		printf("Compression %d sur %d\n", i, part->nbBlocHauteur);
-		for(int j = 0; j < part->nbBlocLongueur; j++){
+    // Boucle externe parallélisée
+    for(int i = start; i < end; i++) {
+		printf("Compression %d sur %d sur le thread %d\n", i-start, end - start, args->start / NUM_THREADS);
+        for(int j = 0; j < part->nbBlocLongueur; j++) {
 			if(part->blocs[i][j]->img->longueur == part->blocs[i][j]->img->hauteur){
 				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
 				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
@@ -153,11 +170,38 @@ partition* compression(image* img, int pasPartition, int pasRecherche){
 				free_image(image_decime);
 				free_image(image_extraite);
 			}
-		}
-	}
+        }
+    }
 
-	printf("Fin de compression :\n");
-	return part;
+    pthread_exit(NULL);
+}
+
+//prend une image, un pas pour la partition et un pas pour la precision de la recherche des blocs source
+//Sort une partition avec tout actualisé
+partition* compression(image* img, int pasPartition, int pasRecherche) {
+    printf("Début de compression :\n");
+    partition* part = partition_from_image(img, pasPartition);
+
+    // Création des threads
+    pthread_t threads[NUM_THREADS];
+    threadArgs thread_args[NUM_THREADS];
+    int step = part->nbBlocHauteur / NUM_THREADS;
+    for (int i = 0; i < NUM_THREADS; i++) {
+        thread_args[i].part = part;
+        thread_args[i].img = img;
+        thread_args[i].pasRecherche = pasRecherche;
+        thread_args[i].start = i * step;
+        thread_args[i].end = (i == NUM_THREADS - 1) ? part->nbBlocHauteur : (i + 1) * step;
+        pthread_create(&threads[i], NULL, compress_thread, (void *)&thread_args[i]);
+    }
+
+    // Attente de la fin de tous les threads
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+	printf("fin de compression\n");
+
+    return part;
 }
 
 int max(int a,int b){
@@ -167,12 +211,17 @@ int max(int a,int b){
 		return a;
 }
 
-//fonction heuristique qui s'execute apres la phase initiale de compression,
-//et qui recherche des bloc autour de celui selectionné avec un pas plus précis (de 1 pixel)
-//Entrée : la partition part, l'image img et un entier pas qui donne la distance autour de laquel on cherche
-void recherche_adjacente(partition* part, image* img, int pas){
-	for(int i = 0; i < part->nbBlocHauteur; i++){
-		printf("Amélioration adjacente %d sur %d\n", i, part->nbBlocHauteur);
+void *recherche_adjacente_thread(void *arg) {
+    threadArgs *args = (threadArgs *)arg;
+
+    int pas = args->pasRecherche;
+    int start = args->start;
+    int end = args->end;
+	partition* part = args->part;
+	image* img = args->img;
+
+	for(int i = start; i < end; i++){
+		printf("Recherche adjacente %d sur %d sur le thread %d\n", i-start, end - start, args->start / NUM_THREADS);
 		for(int j = 0; j < part->nbBlocLongueur; j++){
 			int posx_initial = part->blocs[i][j]->posx;
 			int posy_initial = part->blocs[i][j]->posy;
@@ -207,7 +256,35 @@ void recherche_adjacente(partition* part, image* img, int pas){
 			free_image(image_iso);
 		}
 	}
+    pthread_exit(NULL);
 }
+
+//fonction heuristique qui s'execute apres la phase initiale de compression,
+//et qui recherche des bloc autour de celui selectionné avec un pas plus précis (de 1 pixel)
+//Entrée : la partition part, l'image img et un entier pas qui donne la distance autour de laquel on cherche
+void recherche_adjacente(partition* part, image* img, int pas){
+	printf("Recherche adjacente\n");
+
+    // Création des threads
+    pthread_t threads[NUM_THREADS];
+    threadArgs thread_args[NUM_THREADS];
+    int step = part->nbBlocHauteur / NUM_THREADS;
+    for (int i = 0; i < NUM_THREADS; i++) {
+        thread_args[i].part = part;
+        thread_args[i].img = img;
+        thread_args[i].pasRecherche = pas;
+        thread_args[i].start = i * step;
+        thread_args[i].end = (i == NUM_THREADS - 1) ? part->nbBlocHauteur : (i + 1) * step;
+        pthread_create(&threads[i], NULL, recherche_adjacente_thread, (void *)&thread_args[i]);
+    }
+
+    // Attente de la fin de tous les threads
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+	printf("fin de recherche adjacente\n");
+}
+
 
 // Une fonction de debbug uniquement.
 void affiche_partition(partition* part){
@@ -218,6 +295,7 @@ void affiche_partition(partition* part){
 		printf("\n");
 	}
 }
+
 
 //une itération du processus de décompression
 void une_iteration(partition* part, image* source, image* resultat){
@@ -321,17 +399,17 @@ int main()
 	printf("\n========= Execution de l'algorithme =========\n\n");
 	
 	//image* image_non_compresse = lecture_image("nuages.pgm");
-	image* image_non_compresse = lecture_image("chou.pgm");
+	image* image_non_compresse = lecture_image("mangues.pgm");
 
-	partition* partition_compresse = compression(image_non_compresse, 16, 2);
+	partition* partition_compresse = compression(image_non_compresse, 8, 4);
 
-	recherche_adjacente(partition_compresse, image_non_compresse, 1);
+	recherche_adjacente(partition_compresse, image_non_compresse, 3);
 
 	save_fractale(partition_compresse, "avec_amelioration.ftl");
 
 	//partition* partition_compresse = lecture_fractale("mangues_16_8_50_iso.ftl");
 	
-	image* resultat_decompression_2 = decompression(partition_compresse, 100);
+	image* resultat_decompression_2 = decompression(partition_compresse, 50);
 	save_image(resultat_decompression_2, "avec_amelioration.pgm");
 
 	affiche_partition(partition_compresse);
