@@ -89,7 +89,8 @@ partition* partition_from_image(image* img, int pas){
 		rl = pas;
 	part->nbBlocLongueur = nbBlocLongueur;
 
-	printf("nb bloc hauteur : %d\nnb bloc longueur : %d\nniveau : %d\npas : %d\nrh : %d\n rl : %d\n", nbBlocHauteur, nbBlocLongueur, part->niveau, pas, rh, rl);
+	printf("Partition crée\n");
+	printf("nb bloc hauteur : %d\nnb bloc longueur : %d\nniveau : %d\npas : %d\nrh : %d\nrl : %d\n", nbBlocHauteur, nbBlocLongueur, part->niveau, pas, rh, rl);
 
 
 	part->blocs = (bloc***)malloc(sizeof(bloc**) * nbBlocHauteur);
@@ -156,7 +157,7 @@ void free_partition(partition* part){
 	free(part);
 }
 
-//s'assure que les pixels de l'image sont entre 0 et niveau pour que l'image soit lisible
+/*s'assure que les pixels de l'image sont entre 0 et niveau pour que l'image soit lisible deplacé dans images
 void seuil_pixels(image* img){
 	for(int i = 0; i < img->hauteur; i++){
 		for(int j = 0; j < img->longueur; j++){
@@ -168,6 +169,7 @@ void seuil_pixels(image* img){
 		}
 	}	
 }
+*/
 
 image* image_from_partition(partition* part){
 	image* resultat = create_image(part->hauteur, part->longueur, part->niveau);
@@ -209,6 +211,7 @@ void grille(partition* part){
 
 //enregistre une image sous forme compressé : format detaillé dans fractale.txt
 void save_fractale(partition* part, char* nom_fichier){
+	printf("Enregistrement en .ftl\n");
     FILE* fichier = fopen(nom_fichier, "w" );
     assert(fichier != NULL);
 	

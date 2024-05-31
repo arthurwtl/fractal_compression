@@ -39,6 +39,7 @@ image* create_image(int h, int l, int n){
 
 // Fonction qui enregistre une image_s dans un fichier dont le nom est passé en paramètre
 void save_image(image* img, char* nom_fichier){
+	printf("Enregistrement en .pgm\n");
     FILE* fichier = fopen(nom_fichier, "w" );
     assert(fichier != NULL);
 	
@@ -147,26 +148,32 @@ void add_number_image(double couleur, image* img){
 }
 
 
-//multiplie une constante a tous les pixel (sans sortir de l'interval [0, niveau])
-void multiply_number_image(double couleur, image* img){
-	double tmp;
-	for(int i = 0 ; i < img->hauteur ; i++){
-		for(int j=0 ; j < img->longueur; j++){
-			tmp = img->matrice[i][j] * couleur;
-			if(tmp >= 0 && tmp <= img->niveau)	
-				img->matrice[i][j] = tmp;
-			else{
-				if(tmp >= 0)
-					img->matrice[i][j] = img->niveau;
-				else
-					img->matrice[i][j] = 0;
-					
-			}
+
+//s'assure que les pixels de l'image sont entre 0 et niveau pour que l'image soit lisible
+void seuil_pixels(image* img){
+	for(int i = 0; i < img->hauteur; i++){
+		for(int j = 0; j < img->longueur; j++){
+			if(img->matrice[i][j] < 0)
+				img->matrice[i][j] = 0;
+			if(img->matrice[i][j] > img->niveau)
+				img->matrice[i][j] = (double)img->niveau;
+			
 		}
-	}
+	}	
 }
 
-//Isométries du carré : prend une image carré et un identifiant d'isométrie et lui fait subir l'isométrie. 
+//multiplie une constante a tous les pixel (sans sortir de l'interval [0, niveau])
+void multiply_number_image(double couleur, image* img){
+	for(int i = 0 ; i < img->hauteur ; i++){
+		for(int j=0 ; j < img->longueur; j++){
+			img->matrice[i][j] *= couleur;
+		}
+	}
+	
+	//seuil_pixels(img);
+}
+
+//Isométries du carré : prend une image carré et un identifiant d'isométrie et lui fait subir l'isométrie.
 //L'identité est representé par n(importe quel identifiant >= 7 (7 dans le programme)
 //Entrée : img l'image, res l'image ou s'applique la transformation, id l'identifiant de la transformation
 void isometrie(image* img, image* res, int id){
@@ -229,3 +236,53 @@ void isometrie(image* img, image* res, int id){
 		}
 	}
 }
+
+
+//prend deux image et revoie la différence des deux, centré sur le niveau de gris médiant.
+
+image* difference(image * img1, image* img2){
+	assert(img1->hauteur == img2-> hauteur && img1->longueur == img2->longueur);
+	assert(img1-> niveau = img2->niveau);
+	int h = img1->hauteur;
+	int l = img1->longueur;
+	int n = img1 ->niveau;
+
+	image* res = create_image(h,l,n);
+	remplissage(n/2, res);
+
+	for(int i = 0; i< h; i++){
+		for(int j = 0; j < l; j++){
+			res->matrice[i][j] += img1->matrice[i][j];
+			res->matrice[i][j] -= img2->matrice[i][j];
+		}
+	}
+
+	seuil_pixels(res);
+
+	return res;
+}
+
+image* erreur(image * img1, image* img2){
+	assert(img1->hauteur == img2-> hauteur && img1->longueur == img2->longueur);
+	assert(img1-> niveau = img2->niveau);
+	int h = img1->hauteur;
+	int l = img1->longueur;
+	int n = img1 ->niveau;
+
+	image* res = create_image(h,l,n);
+	remplissage(n/2, res);
+
+	for(int i = 0; i< h; i++){
+		for(int j = 0; j < l; j++){
+			res->matrice[i][j] = (img1->matrice[i][j] - img2->matrice[i][j]) * (img1->matrice[i][j] - img2->matrice[i][j]);
+		}
+	}
+
+	seuil_pixels(res);
+
+	return res;
+}
+
+
+
+

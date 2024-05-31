@@ -51,7 +51,7 @@ double somme_image(image* img){
 
 
 //somme des carrés de la difference des pixels
-double cout(image* img1, image* img2){
+double cout_images(image* img1, image* img2){
 	assert(img1->hauteur == img2->hauteur && img1->longueur == img2->longueur && img1->niveau == img2->niveau);
 	
 	int resultat = 0;
@@ -121,7 +121,7 @@ void *compress_thread(void *arg) {
 
     // Boucle externe parallélisée
     for(int i = start; i < end; i++) {
-		printf("Compression %d sur %d sur le thread %d\n", i-start, end - start, args->start / NUM_THREADS);
+		printf("Compression %d sur %d sur le thread %d\n", i-start, end - start, args->start);
         for(int j = 0; j < part->nbBlocLongueur; j++) {
 			if(part->blocs[i][j]->img->longueur == part->blocs[i][j]->img->hauteur){
 				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
@@ -185,13 +185,14 @@ partition* compression(image* img, int pasPartition, int pasRecherche) {
     // Création des threads
     pthread_t threads[NUM_THREADS];
     threadArgs thread_args[NUM_THREADS];
-    int step = part->nbBlocHauteur / NUM_THREADS;
+    double step = (double)part->nbBlocHauteur / NUM_THREADS;
+	
     for (int i = 0; i < NUM_THREADS; i++) {
         thread_args[i].part = part;
         thread_args[i].img = img;
         thread_args[i].pasRecherche = pasRecherche;
-        thread_args[i].start = i * step;
-        thread_args[i].end = (i == NUM_THREADS - 1) ? part->nbBlocHauteur : (i + 1) * step;
+        thread_args[i].start = (i == 0) ? 0 : thread_args[i-1].end;
+        thread_args[i].end = (i == NUM_THREADS - 1) ? part->nbBlocHauteur : (int)((double)(i + 1) * step);
         pthread_create(&threads[i], NULL, compress_thread, (void *)&thread_args[i]);
     }
 
@@ -259,6 +260,7 @@ void *recherche_adjacente_thread(void *arg) {
     pthread_exit(NULL);
 }
 
+
 //fonction heuristique qui s'execute apres la phase initiale de compression,
 //et qui recherche des bloc autour de celui selectionné avec un pas plus précis (de 1 pixel)
 //Entrée : la partition part, l'image img et un entier pas qui donne la distance autour de laquel on cherche
@@ -268,13 +270,14 @@ void recherche_adjacente(partition* part, image* img, int pas){
     // Création des threads
     pthread_t threads[NUM_THREADS];
     threadArgs thread_args[NUM_THREADS];
-    int step = part->nbBlocHauteur / NUM_THREADS;
+    double step = (double)part->nbBlocHauteur / NUM_THREADS;
+
     for (int i = 0; i < NUM_THREADS; i++) {
         thread_args[i].part = part;
         thread_args[i].img = img;
         thread_args[i].pasRecherche = pas;
-        thread_args[i].start = i * step;
-        thread_args[i].end = (i == NUM_THREADS - 1) ? part->nbBlocHauteur : (i + 1) * step;
+        thread_args[i].start = (i == 0) ? 0 : thread_args[i-1].end;
+        thread_args[i].end = (i == NUM_THREADS - 1) ? part->nbBlocHauteur : (int)((double)(i + 1) * step);
         pthread_create(&threads[i], NULL, recherche_adjacente_thread, (void *)&thread_args[i]);
     }
 
@@ -363,6 +366,57 @@ image* decompression(partition* part, int n){
 	}
 }
 
+//prend une image et une autre image plus petite
+//sort une image dont chaque pixel est le cout entre la petite image et celle extraite de la grande au pixel considéré, deux fois plus grande que la petite
+image* analyse_un_bloc(image* img, image* echantillon){
+	assert(echantillon->niveau = img->niveau);
+	int h = echantillon->hauteur;
+	int l = echantillon->longueur;
+	int n = echantillon->niveau;
+
+
+	image* res = create_image(img->hauteur, img->longueur, img->niveau);
+
+	image* image_extraite = create_image(h * 2, l * 2, n);
+	image* image_decime = create_image(h, l, n);
+	bloc* cursor = create_bloc(image_decime);
+
+	int posx = 0;
+	int posy = 0;
+
+	int max = 1;
+	
+	while(posx < img->hauteur - 2 * h){
+		while(posy < img->longueur - 2 * l){
+			extraire_image(posx, posy, posx + h*2 - 1, posy + 2 * l - 1, img, image_extraite);
+			decime_image(image_extraite, image_decime);
+			regression_lineaire(cursor, echantillon, -1,-1,-1);
+			if(cursor->cout > max) max = cursor->cout;
+			res->matrice[posx][posy] = cursor->cout;
+			//l'id iso est remis immédiatement à -1 donc le cout est actualisé par
+			//l'appel dans tout les cas
+
+			posy += 1;
+		}
+		posx += 1;
+		posy = 0;
+		printf("z");
+	}
+
+	printf("\nmax : %d\n", max);
+	multiply_number_image((double)n/(double)max, res);
+	
+	free_image(image_decime);
+	free_image(image_extraite);
+	free(cursor);
+
+	//seuil_pixels(res);
+
+	return res;
+}
+
+
+
 int main()
 {
 	// ================== Tests divers =================
@@ -397,26 +451,62 @@ int main()
 	// ================== tests de l'algo ===================
 	
 	printf("\n========= Execution de l'algorithme =========\n\n");
+
+	/* ------- Erreur entre deux images -------
+
+	image* img1 = lecture_image("nuages.pgm");
+	image* img2 = lecture_image("nuages_16_8_50_am8.pgm");
 	
+	image* img3 = erreur(img1, img2);
+
+	save_image(img3, "erreur_nuages_16_8_50_am8.pgm");
+
+	free_image(img1);
+	free_image(img2);
+	free_image(img3);
+
+	*/ //------ Analyse blocs ------
+
+	image* img1 = lecture_image("mangues.pgm");
+	image* img2 = create_image(8,8,img1->niveau);
+
+	int posx = 138;
+	int posy = 166;
+
+	extraire_image(posx, posy, posx + img2->hauteur - 1, posy + img2->longueur - 1, img1, img2);
+
+	image* img3 = analyse_un_bloc(img1, img2);
+	save_image(img3, "test_analyse.pgm");
+
+	free_image(img1);
+	free_image(img2);
+	free_image(img3);
+
+
+	
+	// ------ Compression -------
+
 	//image* image_non_compresse = lecture_image("nuages.pgm");
-	image* image_non_compresse = lecture_image("mangues.pgm");
+	//image* image_non_compresse = lecture_image("foret.pgm");
 
-	partition* partition_compresse = compression(image_non_compresse, 8, 4);
+	//partition* partition_compresse = compression(image_non_compresse, 8, 4);
 
-	recherche_adjacente(partition_compresse, image_non_compresse, 3);
+	//recherche_adjacente(partition_compresse, image_non_compresse, 3);
 
-	save_fractale(partition_compresse, "avec_amelioration.ftl");
+	//partition* partition_compresse = lecture_fractale("nuages_16_8_50_am8.ftl");
+
+	//save_fractale(partition_compresse, "avec_amelioration.ftl");
 
 	//partition* partition_compresse = lecture_fractale("mangues_16_8_50_iso.ftl");
 	
-	image* resultat_decompression_2 = decompression(partition_compresse, 50);
-	save_image(resultat_decompression_2, "avec_amelioration.pgm");
+	//image* resultat_decompression_2 = decompression(partition_compresse, 0);
+	//save_image(resultat_decompression_2, "avec_amelioration.pgm");
 
-	affiche_partition(partition_compresse);
+	//affiche_partition(partition_compresse);
 
-	free_partition(partition_compresse);
-	free_image(resultat_decompression_2);
-	free_image(image_non_compresse);
+	//free_partition(partition_compresse);
+	//free_image(resultat_decompression_2);
+	//free_image(image_non_compresse);
 
 
 
