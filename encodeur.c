@@ -74,7 +74,8 @@ void regression_lineaire(bloc* b, image* img, int posx, int posy, int id_iso){
 	double sommeVcarre = somme_du_produit_images(img, img); 
 	double N = b->img->longueur * b->img->hauteur;
 
-	double alpha = (sommeUV * N - sommeU * sommeV) / (sommeVcarre * N - sommeV * sommeV);
+	double alpha = (sommeUV * N - sommeU * sommeV) / (sommeVcarre * N - sommeV * sommeV + 1);
+	//on rajoute un au dénominateur pour éviter les NaN
 	double beta = (alpha * sommeV - sommeU) / N;
 
 	double cout = 0;
@@ -137,6 +138,7 @@ void *compress_thread(void *arg) {
 						
 						for(int id_iso = 0; id_iso <= 7; id_iso++){
 							isometrie(image_decime, image_iso, id_iso);
+							// /!\ remettre id_iso à la place de 7 pour avoir les isométries
 							regression_lineaire(part->blocs[i][j], image_iso, posx, posy, id_iso);	
 						}
 
@@ -368,7 +370,7 @@ image* decompression(partition* part, int n){
 
 //prend une image et une autre image plus petite
 //sort une image dont chaque pixel est le cout entre la petite image et celle extraite de la grande au pixel considéré, deux fois plus grande que la petite
-image* analyse_un_bloc(image* img, image* echantillon){
+image* analyse_un_bloc(image* img, image* echantillon, double sensibilite){
 	assert(echantillon->niveau = img->niveau);
 	int h = echantillon->hauteur;
 	int l = echantillon->longueur;
@@ -379,38 +381,41 @@ image* analyse_un_bloc(image* img, image* echantillon){
 
 	image* image_extraite = create_image(h * 2, l * 2, n);
 	image* image_decime = create_image(h, l, n);
-	bloc* cursor = create_bloc(image_decime);
+	bloc* fixe = create_bloc(echantillon);
 
 	int posx = 0;
 	int posy = 0;
 
-	int max = 1;
+	double max = 1;
 	
 	while(posx < img->hauteur - 2 * h){
 		while(posy < img->longueur - 2 * l){
 			extraire_image(posx, posy, posx + h*2 - 1, posy + 2 * l - 1, img, image_extraite);
 			decime_image(image_extraite, image_decime);
-			regression_lineaire(cursor, echantillon, -1,-1,-1);
-			if(cursor->cout > max) max = cursor->cout;
-			res->matrice[posx][posy] = cursor->cout;
+
+			regression_lineaire(fixe, image_decime, -1,-1,-1);
+			if(fixe->cout > max) {
+				max = fixe->cout;
+			}
+			res->matrice[posx][posy] = fixe->cout;
 			//l'id iso est remis immédiatement à -1 donc le cout est actualisé par
 			//l'appel dans tout les cas
 
 			posy += 1;
+			//printf("Test : %lf\n", fixe->cout);
 		}
 		posx += 1;
 		posy = 0;
-		printf("z");
 	}
 
-	printf("\nmax : %d\n", max);
-	multiply_number_image((double)n/(double)max, res);
+	printf("Analyse : \nmax : %d\n", max);
+	multiply_number_image((double)n*sensibilite/max, res);
 	
 	free_image(image_decime);
 	free_image(image_extraite);
-	free(cursor);
+	free(fixe);
 
-	//seuil_pixels(res);
+	seuil_pixels(res);
 
 	return res;
 }
@@ -452,44 +457,47 @@ int main()
 	
 	printf("\n========= Execution de l'algorithme =========\n\n");
 
-	/* ------- Erreur entre deux images -------
+	/*/ ------- Erreur entre deux images -------
 
 	image* img1 = lecture_image("nuages.pgm");
-	image* img2 = lecture_image("nuages_16_8_50_am8.pgm");
+	image* img2 = lecture_image("nuages_sans_iso_16_8_50.pgm");
 	
 	image* img3 = erreur(img1, img2);
 
-	save_image(img3, "erreur_nuages_16_8_50_am8.pgm");
+	save_image(img3, "diff_nuages_16_8_50_am8.pgm");
 
 	free_image(img1);
 	free_image(img2);
 	free_image(img3);
 
-	*/ //------ Analyse blocs ------
+	///------ Analyse blocs ------
 
-	image* img1 = lecture_image("mangues.pgm");
-	image* img2 = create_image(8,8,img1->niveau);
+	image* img4 = lecture_image("foret.pgm");
+	image* img5 = create_image(8,8,img4->niveau);
 
-	int posx = 138;
-	int posy = 166;
+	int posx = 498;
+	int posy = 104;
 
-	extraire_image(posx, posy, posx + img2->hauteur - 1, posy + img2->longueur - 1, img1, img2);
+	extraire_image(posx, posy, posx + img5->hauteur - 1, posy + img5->longueur - 1, img4, img5);
+	save_image(img5, "echantillon_avant.pgm");
 
-	image* img3 = analyse_un_bloc(img1, img2);
-	save_image(img3, "test_analyse.pgm");
+	image* img6 = analyse_un_bloc(img4, img5, 1);
+	save_image(img6, "analyse.pgm");
+	save_image(img5, "echantillon_apres.pgm");
 
-	free_image(img1);
-	free_image(img2);
-	free_image(img3);
+	free_image(img6);
+	free_image(img4);
+	free_image(img5);
 
 
 	
-	// ------ Compression -------
+	*/// ------ Compression -------
 
-	//image* image_non_compresse = lecture_image("nuages.pgm");
-	//image* image_non_compresse = lecture_image("foret.pgm");
+	//image* image_non_compresse = lecture_image("rayures.pgm");
+	image* image_non_compresse = lecture_image("diff_nuages_16_8_50_am8.pgm");
 
-	//partition* partition_compresse = compression(image_non_compresse, 8, 4);
+	partition* partition_compresse = compression(image_non_compresse, 16, 8);
+	//partition* partition_compresse = lecture_fractale("rayure_32_16_100_am1.ftl");
 
 	//recherche_adjacente(partition_compresse, image_non_compresse, 3);
 
@@ -499,15 +507,16 @@ int main()
 
 	//partition* partition_compresse = lecture_fractale("mangues_16_8_50_iso.ftl");
 	
-	//image* resultat_decompression_2 = decompression(partition_compresse, 0);
-	//save_image(resultat_decompression_2, "avec_amelioration.pgm");
+	image* resultat_decompression_2 = decompression(partition_compresse, 50);
+	save_image(resultat_decompression_2, "compression_reste.pgm");
 
 	//affiche_partition(partition_compresse);
 
-	//free_partition(partition_compresse);
-	//free_image(resultat_decompression_2);
-	//free_image(image_non_compresse);
+	free_partition(partition_compresse);
+	free_image(resultat_decompression_2);
+	free_image(image_non_compresse);
 
+	///
 
 
 	return 0;
