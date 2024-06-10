@@ -100,6 +100,7 @@ partition* partition_from_image(image* img, int pas){
 		part->blocs[i] = (bloc**)malloc(sizeof(bloc*) * nbBlocLongueur);
 		assert(part->blocs[i] != NULL);
 
+		/* debug, affiche les blocs de la partition
 		for(int j = 0; j < nbBlocLongueur; j++){
 			
 			if(i < nbBlocHauteur - 1 && j < nbBlocLongueur - 1){
@@ -116,6 +117,7 @@ partition* partition_from_image(image* img, int pas){
 			}
 
 		}
+		*/
 		
 		for(int j = 0; j < nbBlocLongueur; j++){
 			if(i < nbBlocHauteur - 1 && j < nbBlocLongueur - 1){

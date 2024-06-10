@@ -51,17 +51,17 @@ double somme_image(image* img){
 
 
 //somme des carrés de la difference des pixels
-double cout_images(image* img1, image* img2){
+long double cout_images(image* img1, image* img2){
 	assert(img1->hauteur == img2->hauteur && img1->longueur == img2->longueur && img1->niveau == img2->niveau);
 	
-	int resultat = 0;
+	long double resultat = 0;
 
     for(int i = 0; i < img1->hauteur; i++){
         for(int j = 0; j < img1->longueur; j++){
 			resultat += (img1->matrice[i][j] - img2->matrice[i][j]) * (img1->matrice[i][j] - img2->matrice[i][j]);;
 		}
 	}
-	return resultat;
+	return sqrtl(resultat);
 }
 
 
@@ -111,6 +111,7 @@ typedef struct ThreadArgs threadArgs;
 void *compress_thread(void *arg) {
     threadArgs *args = (threadArgs *)arg;
 
+	// 
     int pasRecherche = args->pasRecherche;
     int start = args->start;
     int end = args->end;
@@ -120,20 +121,28 @@ void *compress_thread(void *arg) {
 	int posx;
 	int posy;
 
+	int h;
+	int l;
+	int n;
+
     // Boucle externe parallélisée
     for(int i = start; i < end; i++) {
 		printf("Compression %d sur %d sur le thread %d\n", i-start, end - start, args->start);
         for(int j = 0; j < part->nbBlocLongueur; j++) {
-			if(part->blocs[i][j]->img->longueur == part->blocs[i][j]->img->hauteur){
-				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
-				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
-				image* image_iso = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+			h = part->blocs[i][j]->img->hauteur;
+			l = part->blocs[i][j]->img->longueur;
+			n = part->blocs[i][j]->img->niveau;
+
+			if(l == h){
+				image* image_extraite = create_image(h * 2, l * 2, n);
+				image* image_decime = create_image(h, l, n);
+				image* image_iso = create_image(h, l, n);
 				posx = 0;
 				posy = 0;
-				while(posx < img->hauteur - 2 * part->blocs[i][j]->img->hauteur){
-					while(posy < img->longueur - 2 * part->blocs[i][j]->img->longueur){
-						extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, img, image_extraite);
-						//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur);
+				while(posx < img->hauteur - 2 * h){
+					while(posy < img->longueur - 2 * l){
+						extraire_image(posx, posy, posx + 2 * h - 1, posy + 2 * l - 1, img, image_extraite);
+						//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, h, l);
 						decime_image(image_extraite, image_decime);
 						
 						for(int id_iso = 0; id_iso <= 7; id_iso++){
@@ -152,14 +161,14 @@ void *compress_thread(void *arg) {
 				free_image(image_iso);
 			}
 			else{
-				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
-				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+				image* image_extraite = create_image(h * 2, l * 2, n);
+				image* image_decime = create_image(h, l, n);
 				posx = 0;
 				posy = 0;
-				while(posx < img->hauteur - 2 * part->blocs[i][j]->img->hauteur){
-					while(posy < img->longueur - 2 * part->blocs[i][j]->img->longueur){
-						extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, img, image_extraite);
-						//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur);
+				while(posx < img->hauteur - 2 * h){
+					while(posy < img->longueur - 2 * l){
+						extraire_image(posx, posy, posx + 2 * h - 1, posy + 2 * l - 1, img, image_extraite);
+						//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, h, l);
 						decime_image(image_extraite, image_decime);
 
 						regression_lineaire(part->blocs[i][j], image_decime, posx, posy, 7);	
@@ -223,22 +232,31 @@ void *recherche_adjacente_thread(void *arg) {
 	partition* part = args->part;
 	image* img = args->img;
 
+	int h;
+	int l;
+	int n;
+
 	for(int i = start; i < end; i++){
 		printf("Recherche adjacente %d sur %d sur le thread %d\n", i-start, end - start, args->start / NUM_THREADS);
 		for(int j = 0; j < part->nbBlocLongueur; j++){
+
+			h = part->blocs[i][j]->img->hauteur;
+			l = part->blocs[i][j]->img->longueur;
+			n = part->blocs[i][j]->img->niveau;
+
 			int posx_initial = part->blocs[i][j]->posx;
 			int posy_initial = part->blocs[i][j]->posy;
 			int posx = max(0, posx_initial - pas);
 			int posy = max(0, posy_initial - pas);
 
-			image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
-			image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
-			image* image_iso = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
+			image* image_extraite = create_image(h * 2, l * 2, n);
+			image* image_decime = create_image(h, l, n);
+			image* image_iso = create_image(h, l, n);
 
-			while(posx < part->hauteur - 2 * part->blocs[i][j]->img->hauteur && posx < posx_initial + pas){
-				while(posy < part->longueur - 2 * part->blocs[i][j]->img->longueur && posy < posy_initial + pas){
-					extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, img, image_extraite);
-					//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur);
+			while(posx < part->hauteur - 2 * h && posx < posx_initial + pas){
+				while(posy < part->longueur - 2 * l && posy < posy_initial + pas){
+					extraire_image(posx, posy, posx + 2 * h - 1, posy + 2 * l - 1, img, image_extraite);
+					//printf("bloc i=%d, j=%d, posx %d, posy %d, hauteur %d, longueur %d\n", i, j, posx, posy, h, l);
 					decime_image(image_extraite, image_decime);
 				
 					if(part->blocs[i][j]->id_iso != 7){
@@ -305,22 +323,34 @@ void affiche_partition(partition* part){
 //une itération du processus de décompression
 void une_iteration(partition* part, image* source, image* resultat){
 	double val_pixel;
+	int h_bloc;
+	int l_bloc;
+	int n = source->niveau; //niveau
+
 	for(int i = 0; i < part->nbBlocHauteur; i++){
 		for(int j = 0; j < part->nbBlocLongueur; j++){
-			if(part->blocs[i][j]->img->longueur == part->blocs[i][j]->img->hauteur){
+			h_bloc = part->blocs[i][j]->img->hauteur;
+			l_bloc = part->blocs[i][j]->img->longueur;
+
+			if(l_bloc == h_bloc){ //pas un bord
+				//on prend en compte les isometrie
 				int posx = part->blocs[i][j]->posx;
 				int posy = part->blocs[i][j]->posy;
-				image* image_extraite = create_image(part->blocs[i][j]->img->hauteur * 2, part->blocs[i][j]->img->longueur * 2, part->blocs[i][j]->img->niveau);
-				image* image_decime = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
-				image* image_iso = create_image(part->blocs[i][j]->img->hauteur, part->blocs[i][j]->img->longueur, part->blocs[i][j]->img->niveau);
-				extraire_image(posx, posy, posx + 2 * part->blocs[i][j]->img->hauteur - 1, posy + 2 * part->blocs[i][j]->img->longueur - 1, source, image_extraite);
+
+				image* image_extraite = create_image(h_bloc * 2, l_bloc * 2, n);
+				image* image_decime = create_image(h_bloc, l_bloc, n);
+				image* image_iso = create_image(h_bloc, l_bloc, n);
+
+				extraire_image(posx, posy, posx + 2 * h_bloc - 1, posy + 2 * l_bloc - 1, source, image_extraite);
 				decime_image(image_extraite, image_decime);
 				isometrie(image_decime, image_iso, part->blocs[i][j]->id_iso);
-				for(int k = 0; k < part->blocs[i][j]->img->hauteur; k++){
-					for(int l = 0; l < part->blocs[i][j]->img->longueur; l++){
+
+				for(int k = 0; k < h_bloc; k++){
+					for(int l = 0; l < l_bloc; l++){
 						resultat->matrice[i * part->pas + k][j * part->pas + l] = image_iso->matrice[k][l] * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
 					}
 				}
+				
 				free_image(image_decime);
 				free_image(image_extraite);
 				free_image(image_iso);
@@ -328,8 +358,8 @@ void une_iteration(partition* part, image* source, image* resultat){
 			else{
 				int posx = part->blocs[i][j]->posx;
 				int posy = part->blocs[i][j]->posy;
-				for(int k = 0; k < part->blocs[i][j]->img->hauteur; k++){
-					for(int l = 0; l < part->blocs[i][j]->img->longueur; l++){
+				for(int k = 0; k < h_bloc; k++){
+					for(int l = 0; l < l_bloc; l++){
 						val_pixel  = (source->matrice[posx + 2*k][posy + 2*l] + source->matrice[posx + 2*k + 1][ posy + 2*l] + source->matrice[ posx +2*k][posy + 2*l + 1] + source->matrice[posx + 2*k + 1 ][posy + 2*l + 1]) / 4;
 						resultat->matrice[i * part->pas + k][j * part->pas + l] = val_pixel * part->blocs[i][j]->alpha - part->blocs[i][j]->beta;
 					}
@@ -408,7 +438,7 @@ image* analyse_un_bloc(image* img, image* echantillon, double sensibilite){
 		posy = 0;
 	}
 
-	printf("Analyse : \nmax : %d\n", max);
+	printf("Analyse : \nmax : %lf\n", max);
 	multiply_number_image((double)n*sensibilite/max, res);
 	
 	free_image(image_decime);
@@ -420,10 +450,56 @@ image* analyse_un_bloc(image* img, image* echantillon, double sensibilite){
 	return res;
 }
 
+long double maxld(long double a, long double b){
+		if(a > b)
+		return a;
+	else
+		return b;
+}
+
+//calcule la constante de contraction en regardant sur des images tirées aléatoirement
+long double test_contraction(partition* part, int nb_iteration){
+	image* img1 = create_image(part->hauteur, part->longueur, part->niveau);
+	image* img2 = create_image(part->hauteur, part->longueur, part->niveau);
+
+	image* tmp1 = create_image(part->hauteur, part->longueur, part->niveau);
+	image* tmp2 = create_image(part->hauteur, part->longueur, part->niveau);
+
+	long double distance_antecedent;
+	long double distance_image;
+
+	long double res;
+
+	for(int i = 0;i < nb_iteration; i++){
+		image_aleatoire(img1);
+		image_aleatoire(img2);
+
+		distance_antecedent = cout_images(img1, img2);
+		printf("distance antecedent %Lf\n", distance_antecedent);
+		
+		une_iteration(part, img1, tmp1);
+		une_iteration(part, img2, tmp2);
+
+		distance_image = cout_images(tmp1, tmp2);
+		printf("distance image %Lf\n", distance_image);
+
+		res = maxld(distance_image / distance_antecedent, res);
+	}
+
+	free_image(img1);
+	free_image(img2);
+	free_image(tmp1);
+	free_image(tmp2);
+
+	return res;
+}
+
+
 
 
 int main()
 {
+	srand(time(NULL));
 	// ================== Tests divers =================
 
 	/*
@@ -462,16 +538,17 @@ int main()
 	image* img1 = lecture_image("nuages.pgm");
 	image* img2 = lecture_image("nuages_sans_iso_16_8_50.pgm");
 	
-	image* img3 = erreur(img1, img2);
+	image* img3 = difference(img1, img2);
 
-	save_image(img3, "diff_nuages_16_8_50_am8.pgm");
+	save_image(img3, "diff_nuages_sans_iso_16_8_50_am8.pgm");
 
 	free_image(img1);
 	free_image(img2);
 	free_image(img3);
 
-	///------ Analyse blocs ------
-
+	*///------ Analyse blocs ------
+	/*//
+	
 	image* img4 = lecture_image("foret.pgm");
 	image* img5 = create_image(8,8,img4->niveau);
 
@@ -488,18 +565,27 @@ int main()
 	free_image(img6);
 	free_image(img4);
 	free_image(img5);
+	
+	*/// -------- Analyse compression ---------
+	/*//
+
+	partition* part = lecture_fractale("nuages_8_2_am1.ftl");
+
+	printf("La constante de contraction est au moins de %Lf", test_contraction(part, 100));
+
+	free_partition(part);
 
 
 	
 	*/// ------ Compression -------
 
 	//image* image_non_compresse = lecture_image("rayures.pgm");
-	image* image_non_compresse = lecture_image("diff_nuages_16_8_50_am8.pgm");
+	image* image_non_compresse = lecture_image("nuages.pgm");
 
-	partition* partition_compresse = compression(image_non_compresse, 16, 8);
+	partition* partition_compresse = compression(image_non_compresse, 16*2, 8*2);
 	//partition* partition_compresse = lecture_fractale("rayure_32_16_100_am1.ftl");
 
-	//recherche_adjacente(partition_compresse, image_non_compresse, 3);
+	recherche_adjacente(partition_compresse, image_non_compresse, 3);
 
 	//partition* partition_compresse = lecture_fractale("nuages_16_8_50_am8.ftl");
 
@@ -508,7 +594,7 @@ int main()
 	//partition* partition_compresse = lecture_fractale("mangues_16_8_50_iso.ftl");
 	
 	image* resultat_decompression_2 = decompression(partition_compresse, 50);
-	save_image(resultat_decompression_2, "compression_reste.pgm");
+	save_image(resultat_decompression_2, "resultat_decompression.pgm");
 
 	//affiche_partition(partition_compresse);
 

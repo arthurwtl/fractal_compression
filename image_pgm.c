@@ -5,7 +5,10 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <time.h>
+#include <math.h>
 #endif
+
 
 struct image_s{
     int longueur;
@@ -281,6 +284,21 @@ image* erreur(image * img1, image* img2){
 	seuil_pixels(res);
 
 	return res;
+}
+
+
+//renvoie une nouvelle image ou chaque pixel est tiré aléatoirement selon la loi uniforme
+
+void image_aleatoire(image* img){
+	int h = img->hauteur;
+	int l = img->longueur;
+	int n = img->niveau;
+
+	for(int i = 0; i < h; i++){
+		for(int j = 0; j < l ; j++){
+			img->matrice[i][j] = rand() % n;
+		}
+	}
 }
 
 
