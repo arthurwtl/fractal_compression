@@ -22,7 +22,8 @@
 // ============= Regression linéaire =============
 
 
-//renvoit la somme des pixels de l'image ou chaque pixel et le produit des pixels de meme coordonnées dans les images données en parametre
+//renvoit la somme des pixels de l'image ou chaque pixel et le produit des pixels de meme
+//coordonnées dans les images données en parametre
 double somme_du_produit_images(image* img1, image* img2){
 	assert(img1->hauteur == img2->hauteur && img1->longueur == img2->longueur && img1->niveau == img2->niveau);
 	
@@ -281,7 +282,7 @@ void *recherche_adjacente_thread(void *arg) {
 }
 
 
-//fonction heuristique qui s'execute apres la phase initiale de compression,
+//fonction qui s'execute apres la phase initiale de compression,
 //et qui recherche des bloc autour de celui selectionné avec un pas plus précis (de 1 pixel)
 //Entrée : la partition part, l'image img et un entier pas qui donne la distance autour de laquel on cherche
 void recherche_adjacente(partition* part, image* img, int pas){
@@ -320,7 +321,7 @@ void affiche_partition(partition* part){
 }
 
 
-//une itération du processus de décompression
+//une itération de la décompression
 void une_iteration(partition* part, image* source, image* resultat){
 	double val_pixel;
 	int h_bloc;
@@ -468,7 +469,7 @@ long double test_contraction(partition* part, int nb_iteration){
 	long double distance_antecedent;
 	long double distance_image;
 
-	long double res;
+	long double res = 0;
 
 	for(int i = 0;i < nb_iteration; i++){
 		image_aleatoire(img1);
@@ -533,20 +534,24 @@ int main()
 	
 	printf("\n========= Execution de l'algorithme =========\n\n");
 
-	/*/ ------- Erreur entre deux images -------
+	// ------- Erreur entre deux images -------
 
-	image* img1 = lecture_image("nuages.pgm");
-	image* img2 = lecture_image("nuages_sans_iso_16_8_50.pgm");
+	image* nuages = lecture_image("nuages.pgm");
+	image* sans_iso = lecture_image("nuages_sans_iso_16_8_50.pgm");
+	image* avec_iso = lecture_image("nuages_16_8_50.pgm");
+	image* avec_am = lecture_image("nuages_16_8_50_am8.pgm");
+
+	printf("sans iso %Lf\n", sqrtl(cout_images(nuages, sans_iso)));
+	printf("avec iso %Lf\n", sqrtl(cout_images(nuages, avec_iso)));
+	printf("avec am %Lf\n", sqrtl(cout_images(nuages, avec_am)));
 	
-	image* img3 = difference(img1, img2);
 
-	save_image(img3, "diff_nuages_sans_iso_16_8_50_am8.pgm");
+	free_image(nuages);
+	free_image(sans_iso);
+	free_image(avec_iso);
+	free_image(avec_am);
 
-	free_image(img1);
-	free_image(img2);
-	free_image(img3);
-
-	*///------ Analyse blocs ------
+	///------ Analyse blocs ------
 	/*//
 	
 	image* img4 = lecture_image("foret.pgm");
@@ -578,14 +583,15 @@ int main()
 
 	
 	*/// ------ Compression -------
+	/*/
 
 	//image* image_non_compresse = lecture_image("rayures.pgm");
-	image* image_non_compresse = lecture_image("nuages.pgm");
+	image* image_non_compresse = lecture_image("rayures.pgm");
 
-	partition* partition_compresse = compression(image_non_compresse, 16*2, 8*2);
+	partition* partition_compresse = compression(image_non_compresse, 8, 8);
 	//partition* partition_compresse = lecture_fractale("rayure_32_16_100_am1.ftl");
 
-	recherche_adjacente(partition_compresse, image_non_compresse, 3);
+	recherche_adjacente(partition_compresse, image_non_compresse, 8);
 
 	//partition* partition_compresse = lecture_fractale("nuages_16_8_50_am8.ftl");
 
@@ -594,7 +600,7 @@ int main()
 	//partition* partition_compresse = lecture_fractale("mangues_16_8_50_iso.ftl");
 	
 	image* resultat_decompression_2 = decompression(partition_compresse, 50);
-	save_image(resultat_decompression_2, "resultat_decompression.pgm");
+	save_image(resultat_decompression_2, "rayures_8_8_50_am8.pgm");
 
 	//affiche_partition(partition_compresse);
 
@@ -602,7 +608,7 @@ int main()
 	free_image(resultat_decompression_2);
 	free_image(image_non_compresse);
 
-	///
+	*///
 
 
 	return 0;
